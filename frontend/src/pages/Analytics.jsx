@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -52,16 +52,30 @@ function AnalyticsPicker() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    (async () => {
+    let cancelled = false;
+
+    const load = async () => {
       try {
         const res = await urlApi.list({ page: 1, limit: 50 });
-        setUrls(res.data.urls);
+        if (!cancelled) setUrls(res.data.urls);
       } catch (err) {
-        toast.error(err.message);
+        if (!cancelled) toast.error(err.message);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    })();
+    };
+
+    load();
+
+    // ⭐ Auto-refresh picker every 10s for live click counts
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') load();
+    }, 10000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, []);
 
   return (
@@ -170,7 +184,7 @@ function AnalyticsDetail({ shortCode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shortCode, days]);
 
-  // Auto-refresh every 15s when tab visible
+  // ⭐ Auto-refresh every 5s when tab visible (was 15s)
   useEffect(() => {
     if (!autoRefresh) return;
 
@@ -178,9 +192,31 @@ function AnalyticsDetail({ shortCode }) {
       if (document.visibilityState === 'visible') {
         fetchAll(true);
       }
-    }, 15000);
+    }, 5000);
 
     return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRefresh, shortCode, days]);
+
+  // ⭐ Refresh when tab regains focus (user switches back)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (autoRefresh) fetchAll(true);
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && autoRefresh) {
+        fetchAll(true);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRefresh, shortCode, days]);
 
@@ -243,7 +279,7 @@ function AnalyticsDetail({ shortCode }) {
                   ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
                   : 'bg-ink-800/50 text-ink-400 border-ink-700'
               }`}
-              title="Toggle auto-refresh every 15s"
+              title="Toggle auto-refresh every 5s"
             >
               <span
                 className={`w-1.5 h-1.5 rounded-full ${

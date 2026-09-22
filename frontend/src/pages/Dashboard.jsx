@@ -1,7 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  MousePointerClick, Link2, Calendar, TrendingUp, Search, Plus,
+  MousePointerClick,
+  Link2,
+  Calendar,
+  TrendingUp,
+  Search,
+  Plus,
 } from 'lucide-react';
 import { useUrls } from '../hooks/useUrls';
 import { useDebounce } from '../hooks/useDebounce';
@@ -15,6 +20,24 @@ export default function Dashboard() {
   const [filter, setFilter] = useState('all');
   const [showCreate, setShowCreate] = useState(false);
   const debouncedSearch = useDebounce(search, 200);
+
+  // ⭐ Auto-refresh dashboard every 10s for live click counts
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        refresh();
+      }
+    }, 10000);
+
+    return () => clearInterval(id);
+  }, [refresh]);
+
+  // ⭐ Refresh on tab focus
+  useEffect(() => {
+    const handleFocus = () => refresh();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [refresh]);
 
   const stats = useMemo(() => {
     const total = urls.length;
@@ -55,9 +78,14 @@ export default function Dashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
-          <p className="text-ink-400 text-sm">Manage all your short links in one place</p>
+          <p className="text-ink-400 text-sm">
+            Manage all your short links in one place
+          </p>
         </div>
-        <button onClick={() => setShowCreate((v) => !v)} className="btn-primary self-start">
+        <button
+          onClick={() => setShowCreate((v) => !v)}
+          className="btn-primary self-start"
+        >
           <Plus className="w-4 h-4" /> New short link
         </button>
       </div>
@@ -69,7 +97,13 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           className="glass p-6 mb-8"
         >
-          <UrlShortenerForm onCreated={() => { refresh(); setShowCreate(false); }} compact />
+          <UrlShortenerForm
+            onCreated={() => {
+              refresh();
+              setShowCreate(false);
+            }}
+            compact
+          />
         </motion.div>
       )}
 
@@ -114,9 +148,15 @@ export default function Dashboard() {
           />
         </div>
         <div className="flex gap-2">
-          <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>All</FilterChip>
-          <FilterChip active={filter === 'custom'} onClick={() => setFilter('custom')}>Custom</FilterChip>
-          <FilterChip active={filter === 'expiring'} onClick={() => setFilter('expiring')}>Expiring</FilterChip>
+          <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>
+            All
+          </FilterChip>
+          <FilterChip active={filter === 'custom'} onClick={() => setFilter('custom')}>
+            Custom
+          </FilterChip>
+          <FilterChip active={filter === 'expiring'} onClick={() => setFilter('expiring')}>
+            Expiring
+          </FilterChip>
         </div>
       </div>
 
@@ -130,7 +170,9 @@ export default function Dashboard() {
             <div className="glass p-12 text-center">
               <Search className="w-12 h-12 mx-auto text-ink-600 mb-4" />
               <h3 className="text-lg font-semibold mb-2">No matching URLs</h3>
-              <p className="text-ink-400 text-sm">Try changing your search or filters</p>
+              <p className="text-ink-400 text-sm">
+                Try changing your search or filters
+              </p>
             </div>
           ) : undefined
         }
@@ -143,7 +185,8 @@ function StatCard({ icon: Icon, label, value, color }) {
   const colors = {
     brand: 'from-brand-500/20 to-brand-500/5 border-brand-500/30 text-brand-400',
     accent: 'from-accent/20 to-accent/5 border-accent/30 text-accent',
-    emerald: 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/30 text-emerald-400',
+    emerald:
+      'from-emerald-500/20 to-emerald-500/5 border-emerald-500/30 text-emerald-400',
     amber: 'from-amber-500/20 to-amber-500/5 border-amber-500/30 text-amber-400',
   };
 
@@ -153,7 +196,9 @@ function StatCard({ icon: Icon, label, value, color }) {
       animate={{ opacity: 1, y: 0 }}
       className="glass p-5"
     >
-      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colors[color]} border flex items-center justify-center mb-3`}>
+      <div
+        className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colors[color]} border flex items-center justify-center mb-3`}
+      >
         <Icon className="w-5 h-5" />
       </div>
       <div className="text-2xl font-bold">{value}</div>

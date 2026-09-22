@@ -35,6 +35,22 @@ app.use(cors({
 }));
 
 // ============================================
+// ⭐ NO-CACHE MIDDLEWARE FOR API ROUTES
+// Prevents browser, CDN, and proxy caching of API responses.
+// Critical for real-time analytics (total clicks sync instantly).
+// ============================================
+app.use('/api', (req, res, next) => {
+  res.setHeader(
+    'Cache-Control',
+    'no-store, no-cache, must-revalidate, private, max-age=0'
+  );
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store'); // For CDN layers (Vercel/Cloudflare)
+  next();
+});
+
+// ============================================
 // BODY PARSING
 // ============================================
 app.use(express.json({ limit: '10mb' }));
