@@ -20,23 +20,6 @@ Transform long URLs into powerful, trackable short links with beautiful analytic
 
 ---
 
-## 📸 Screenshots
-
-<div align="center">
-
-### 🏠 Landing Page
-> Beautiful hero section with instant URL shortener, animated gradient background
-
-### 📊 Dashboard
-> Manage all your short links with live click counters, search, and filters
-
-### 📈 Analytics
-> Rich visualizations — clicks over time, device breakdown, top countries, referrers
-
-### 👤 Profile
-> User info + API key management with one-click regeneration
-
-</div>
 
 ---
 
