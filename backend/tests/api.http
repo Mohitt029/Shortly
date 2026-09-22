@@ -1,0 +1,282 @@
+### ═══════════════════════════════════════════════════════════════
+### SHORTLY API — VS Code REST Client Test Suite (v2)
+### Usage:
+###   1. Install "REST Client" extension by Huachao Mao
+###   2. Open this file → click "Send Request" above each request
+###   3. Run TOP-TO-BOTTOM on a fresh DB (run `node cleanup.js` first)
+### ═══════════════════════════════════════════════════════════════
+
+@baseUrl = http://localhost:5000
+@apiVersion = v1
+@contentType = application/json
+
+### ═══════════════════════════════════════════════════════════════
+### SECTION 1 — HEALTH & INFO
+### ═══════════════════════════════════════════════════════════════
+
+### 1.1 Root endpoint
+GET {{baseUrl}}/
+
+### 1.2 Health check
+GET {{baseUrl}}/health
+
+### 1.3 API status
+GET {{baseUrl}}/api/{{apiVersion}}/status
+
+### ═══════════════════════════════════════════════════════════════
+### SECTION 2 — AUTH
+### ═══════════════════════════════════════════════════════════════
+
+### 2.1 Register a new user
+# @name register
+POST {{baseUrl}}/api/{{apiVersion}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Mohitt Test",
+  "email": "mohitt-test@example.com",
+  "password": "MySecurePass123!"
+}
+
+### 2.2 Login
+# @name login
+POST {{baseUrl}}/api/{{apiVersion}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "mohitt-test@example.com",
+  "password": "MySecurePass123!"
+}
+
+### 2.3 Extract tokens (from register or login — pick one)
+@accessToken = {{register.response.body.data.access_token}}
+@refreshToken = {{register.response.body.data.refresh_token}}
+@apiKey = {{register.response.body.data.api_key}}
+
+### 2.4 /me with Bearer token
+GET {{baseUrl}}/api/{{apiVersion}}/auth/me
+Authorization: Bearer {{accessToken}}
+
+### 2.5 /me with API key
+GET {{baseUrl}}/api/{{apiVersion}}/auth/me
+X-API-Key: {{apiKey}}
+
+### 2.6 Refresh tokens
+# @name refreshResp
+POST {{baseUrl}}/api/{{apiVersion}}/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refresh_token": "{{refreshToken}}"
+}
+
+### 2.7 Wrong password (expect 401)
+POST {{baseUrl}}/api/{{apiVersion}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "mohitt-test@example.com",
+  "password": "WrongPassword"
+}
+
+### 2.8 Duplicate email (expect 409)
+POST {{baseUrl}}/api/{{apiVersion}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Duplicate",
+  "email": "mohitt-test@example.com",
+  "password": "AnotherPass456!"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### SECTION 3 — URL CREATION
+### ═══════════════════════════════════════════════════════════════
+
+### 3.1 Create anonymous URL
+# @name anonCreate
+POST {{baseUrl}}/api/{{apiVersion}}/urls
+Content-Type: {{contentType}}
+
+{
+  "long_url": "https://example.com/anonymous-test"
+}
+
+### 3.2 Create owned URL with custom alias
+# @name authCreate
+POST {{baseUrl}}/api/{{apiVersion}}/urls
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "long_url": "https://github.com/mohitt1213",
+  "custom_alias": "mohitt-gh"
+}
+
+### 3.3 Create URL with expiration
+# @name expCreate
+POST {{baseUrl}}/api/{{apiVersion}}/urls
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "long_url": "https://news.ycombinator.com",
+  "expires_at": "2027-12-31T23:59:59Z"
+}
+
+### 3.4 Invalid URL (expect 400)
+POST {{baseUrl}}/api/{{apiVersion}}/urls
+Content-Type: {{contentType}}
+
+{
+  "long_url": "not-a-valid-url"
+}
+
+### 3.5 Reserved alias (expect 400)
+POST {{baseUrl}}/api/{{apiVersion}}/urls
+Content-Type: {{contentType}}
+
+{
+  "long_url": "https://example.com",
+  "custom_alias": "api"
+}
+
+### 3.6 Duplicate alias (expect 409) — run after 3.2
+POST {{baseUrl}}/api/{{apiVersion}}/urls
+Content-Type: {{contentType}}
+
+{
+  "long_url": "https://different.com",
+  "custom_alias": "mohitt-gh"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### SECTION 4 — URL MANAGEMENT
+### ═══════════════════════════════════════════════════════════════
+
+### 4.1 List my URLs
+GET {{baseUrl}}/api/{{apiVersion}}/urls?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### 4.2 List without auth (expect 401)
+GET {{baseUrl}}/api/{{apiVersion}}/urls
+
+### 4.3 Public details (expect isOwner: false)
+GET {{baseUrl}}/api/{{apiVersion}}/urls/mohitt-gh
+
+### 4.4 Owner details (expect isOwner: true)
+GET {{baseUrl}}/api/{{apiVersion}}/urls/mohitt-gh
+Authorization: Bearer {{accessToken}}
+
+### 4.5 Update expiration (owner)
+PATCH {{baseUrl}}/api/{{apiVersion}}/urls/mohitt-gh
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "expires_at": "2027-06-30T23:59:59Z"
+}
+
+### 4.6 Update without auth (expect 401)
+PATCH {{baseUrl}}/api/{{apiVersion}}/urls/mohitt-gh
+Content-Type: {{contentType}}
+
+{
+  "expires_at": "2027-06-30T23:59:59Z"
+}
+
+### 4.7 Try to delete ANONYMOUS URL (expect 403)
+DELETE {{baseUrl}}/api/{{apiVersion}}/urls/{{anonCreate.response.body.data.short_code}}
+Authorization: Bearer {{accessToken}}
+
+### ═══════════════════════════════════════════════════════════════
+### SECTION 5 — REDIRECT (uses LIVE URLs created above)
+### ═══════════════════════════════════════════════════════════════
+
+### 5.1 Redirect OWNED custom alias → expect 302
+GET {{baseUrl}}/mohitt-gh
+
+### 5.2 Redirect ANONYMOUS URL → expect 302
+GET {{baseUrl}}/{{anonCreate.response.body.data.short_code}}
+
+### 5.3 Redirect EXPIRATION URL → expect 302
+GET {{baseUrl}}/{{expCreate.response.body.data.short_code}}
+
+### 5.4 Redirect NON-EXISTENT → expect 404
+GET {{baseUrl}}/doesnotexist999xyz
+
+### 5.5 Health still works → expect 200
+GET {{baseUrl}}/health
+
+### ═══════════════════════════════════════════════════════════════
+### SECTION 6 — ANALYTICS (uses LIVE URLs)
+### ═══════════════════════════════════════════════════════════════
+
+### 6.1 Analytics for OWNED URL
+GET {{baseUrl}}/api/{{apiVersion}}/analytics/mohitt-gh?days=30
+
+### 6.2 Analytics for EXPIRATION URL
+GET {{baseUrl}}/api/{{apiVersion}}/analytics/{{expCreate.response.body.data.short_code}}?days=7
+
+### 6.3 Analytics for NON-EXISTENT (expect 404)
+GET {{baseUrl}}/api/{{apiVersion}}/analytics/doesnotexist999xyz
+
+### 6.4 Manual flush (owner)
+POST {{baseUrl}}/api/{{apiVersion}}/analytics/flush
+Authorization: Bearer {{accessToken}}
+
+### ═══════════════════════════════════════════════════════════════
+### SECTION 7 — CLEANUP (Delete owned URL — run AFTER redirects)
+### ═══════════════════════════════════════════════════════════════
+
+### 7.1 Delete OWNED URL
+DELETE {{baseUrl}}/api/{{apiVersion}}/urls/mohitt-gh
+Authorization: Bearer {{accessToken}}
+
+### 7.2 Verify deleted (expect 404)
+GET {{baseUrl}}/api/{{apiVersion}}/urls/mohitt-gh
+
+### 7.3 Redirect to deleted (expect 404)
+GET {{baseUrl}}/mohitt-gh
+
+### ═══════════════════════════════════════════════════════════════
+### SECTION 8 — LOGOUT
+### ═══════════════════════════════════════════════════════════════
+
+### 8.1 Logout
+POST {{baseUrl}}/api/{{apiVersion}}/auth/logout
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "refresh_token": "{{refreshToken}}"
+}
+
+### 8.2 Try refresh after logout (expect 401)
+POST {{baseUrl}}/api/{{apiVersion}}/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refresh_token": "{{refreshToken}}"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### NOTES
+### ═══════════════════════════════════════════════════════════════
+###
+### 🎯 CORRECT TEST ORDER:
+###   1. Run `node cleanup.js` first (clean DB)
+###   2. Run Section 1 → 2 → 3 → 4
+###   3. Section 5 (Redirect) — uses URLs from Section 3
+###   4. Section 6 (Analytics) — needs clicks from Section 5
+###   5. Section 7 (Delete owned) — MUST come last before logout
+###   6. Section 8 (Logout) — invalidates tokens
+###
+### ⚠️ KEY INSIGHT:
+###   Section 5 uses {{anonCreate.response.body...}} and 
+###   {{expCreate.response.body...}} — dynamic references
+###   So the redirect URLs are always LIVE, never stale.
+###
+### 🔁 TO RE-RUN:
+###   `node cleanup.js` then `Ctrl+Alt+R` (or run in order manually)
+###
